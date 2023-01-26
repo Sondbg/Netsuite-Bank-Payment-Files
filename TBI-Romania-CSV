@@ -1,0 +1,68 @@
+NAME:
+RO-CSV
+
+PAYMENT FILE TYPE
+EFT
+
+COUNTRY
+Romania
+
+REFERENCE FIELDS
+<refFields type="RO-CSV">
+<refField id="custrecord_2663_company_name" label="Company Name" mandatory="true" helptext="Enter the company name"/>
+<refField id="custrecord_2663_iban" label="IBAN number" helptext="IBAN account number"/>
+<refField id="custrecord_2663_bic" label="BIC number" helptext="BIC numer"/>
+</refFields>
+
+ENTITY REFERENCE FIELDS
+<refFields type="RO-CSV">
+<refField id="custrecord_2663_entity_bank_code" label="Bank Code" helptext="Enter the Entity Bank code"/>
+<refField id="custrecord_2663_entity_bank_name" label="Bank name" helptext="Enter the Entity Bank name"/>
+<refField id="custrecord_2663_entity_branch_name" label="Bank branch name" helptext="Enter the bank branch name"/>
+<refField id="custrecord_2663_entity_iban" label="IBAN" mandatory="true"/>
+</refFields>
+
+FIELD VALIDATOR
+<fieldValidatorList>
+</fieldValidatorList>
+
+BANK FILE TEMPLATE
+<#function listPayments>
+<#assign totalAmount=0>
+<#assign numberOfOrders=0>
+<#list payments as payment>
+<#assign totalAmount = totalAmount + getAmount(payment,true)>
+<#assign numberOfOrders = numberOfOrders + 1>
+</#list>
+totalAmount=setMaxLength(totalAmount,17)
+numberOfOrders=setMaxLength(numberOfOrders,5)
+<#return [totalAmount, numberOfOrders]>
+</#function>
+
+
+#OUTPUT START#
+OMP;DP;${pfa.custrecord_2663_file_creation_timestamp?date?string("yyyyMMdd")};TBIBROBU;${setMaxLength(cbank.custpage_eft_custrecord_2663_iban,24)};${setMaxLength(cbank.custpage_eft_custrecord_2663_company_name,35)};RON;${formatAmount(listPayments()[0],'dec','.')};${listPayments()[1]};;
+<#list payments as payment>
+<#assign ebank = ebanks[payment_index]>
+<#assign entity = entities[payment_index]>
+DP;${setMaxLength(buildEntityName(entity,false),35)};;${setMaxLength(ebank.custrecord_2663_entity_bank_code,8)};${setMaxLength(ebank.custrecord_2663_entity_iban,24)};${setMaxLength(ebank.custrecord_2663_entity_bank_name,35)};${formatAmount(getAmount(payment,true),'dec','.')};${setMaxLength(buildMemo(payment),70)};311;PayPro;1;0;
+</#list>
+#OUTPUT END#
+
+
+<#function buildMemo payment>
+<#assign paidTransactions = transHash[payment.internalid]>
+<#assign referenceNote = "">
+<#assign paidTransactionsCount = paidTransactions?size>
+<#if (paidTransactionsCount >= 1)>
+<#list paidTransactions as transaction>
+<#if transaction.tranid?has_content>
+<#assign referenceNote = referenceNote + transaction.tranid>
+<#if (paidTransactionsCount >= 1 && transaction_index != paidTransactionsCount - 1)>
+<#assign referenceNote = referenceNote + " ">
+</#if>
+</#if>
+</#list>
+</#if>
+<#return referenceNote>
+</#function>
